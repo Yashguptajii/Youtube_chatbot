@@ -52,3 +52,11 @@ question = "is the topic of aliens discussed in this video? if yes then what was
 
 retrieved_docs = retriever.invoke(question)
 
+context_text = "\n\n".join(doc.page_content for doc in retrieved_docs)
+
+final_prompt = prompt.invoke({"context":context_text,"question": question})
+
+answer = llm.invoke(final_prompt)
+print(answer.content)
+
+
