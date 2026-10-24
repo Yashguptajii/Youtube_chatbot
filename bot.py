@@ -7,6 +7,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnableParallel, RunnablePassthrough, RunnableLambda
+from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -48,15 +50,27 @@ prompt = PromptTemplate(
     input_variables=['context','question']
 )
 
+parser = StrOutputParser()
+
 question = "is the topic of aliens discussed in this video? if yes then what was discussed?"
 
 retrieved_docs = retriever.invoke(question)
 
-context_text = "\n\n".join(doc.page_content for doc in retrieved_docs)
+def format_docs(retrieved_docs):
+    context_text = "\n\n".join(doc.page_content for doc in retrieved_docs)
+    return context_text
 
-final_prompt = prompt.invoke({"context":context_text,"question": question})
+parallel_chain = RunnableParallel({
+    'context': retriever | RunnableLambda(format_docs),
+    'question': RunnablePassthrough()
+})
 
-answer = llm.invoke(final_prompt)
+parallel_chain.invoke(question)
+
+main_chain = parallel_chain | prompt | llm | parser
+
+answer = main_chain.invoke(question)
+
 print(answer.content)
 
 
